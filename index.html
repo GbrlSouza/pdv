@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDV Web - Sistema de Ponto de Venda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Animation for cart items */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .cart-item-animation {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Modal transition */
+        .modal-transition {
+            transition: all 0.3s ease-out;
+        }
+        
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">PDV Web <span class="text-blue-600">Ponto de Venda</span></h1>
+            <p class="text-gray-600">Sistema de gerenciamento de vendas</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Main Content Area -->
+            <div class="flex-1">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800">Produtos</h2>
+                        <div class="flex gap-2">
+                            <button onclick="openAddProductModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                                <i class="fas fa-plus"></i> Adicionar Produto
+                            </button>
+                            <div class="relative">
+                                <input type="text" id="searchProduct" placeholder="Buscar produtos..." class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="productsContainer">
+                        <!-- Products will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shopping Cart Sidebar -->
+            <div class="w-full lg:w-80">
+                <div class="bg-white rounded-lg shadow-md p-6 sticky top-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold text-gray-800">Carrinho</h2>
+                        <span id="cartCount" class="bg-blue-600 text-white text-sm font-bold px-2 py-1 rounded-full">0</span>
+                    </div>
+
+                    <div id="cartItems" class="custom-scrollbar max-h-96 overflow-y-auto mb-4 space-y-3">
+                        <p class="text-gray-500 text-center py-4">Seu carrinho está vazio</p>
+                    </div>
+
+                    <div class="border-t pt-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-medium">Subtotal:</span>
+                            <span id="subtotal">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="font-medium">Desconto:</span>
+                            <span id="discount">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold">
+                            <span>Total:</span>
+                            <span id="total">R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <button onclick="openCheckoutModal()" id="checkoutBtn" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors" disabled>
+                        Finalizar Venda
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal-transition">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="flex justify-between items-center border-b p-4">
+                <h3 class="text-lg font-semibold">Adicionar Novo Produto</h3>
+                <button onclick="closeAddProductModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <form id="addProductForm">
+                    <div class="mb-4">
+                        <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Nome do Produto</label>
+                        <input type="text" id="productName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="productPrice" class="block text-sm font-medium text-gray-700 mb-1">Preço (R$)</label>
+                        <input type="number" id="productPrice" min="0" step="0.01" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="productCategory" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                        <select id="productCategory" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="eletronicos">Eletrônicos</option>
+                            <option value="vestuario">Vestuário</option>
+                            <option value="alimentos">Alimentos</option>
+                            <option value="moveis">Móveis</option>
+                            <option value="outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="productImage" class="block text-sm font-medium text-gray-700 mb-1">URL da Imagem (opcional)</label>
+                        <input type="text" id="productImage" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://exemplo.com/imagem.jpg">
+                    </div>
+                </form>
+            </div>
+            <div class="flex justify-end border-t p-4">
+                <button onclick="closeAddProductModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 mr-2">Cancelar</button>
+                <button onclick="addNewProduct()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal-transition">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="flex justify-between items-center border-b p-4">
+                <h3 class="text-lg font-semibold">Finalizar Venda</h3>
+                <button onclick="closeCheckoutModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="mb-4">
+                    <label for="customerName" class="block text-sm font-medium text-gray-700 mb-1">Nome do Cliente (opcional)</label>
+                    <input type="text" id="customerName" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Digite o nome do cliente">
+                </div>
+                <div class="mb-4">
+                    <label for="discountValue" class="block text-sm font-medium text-gray-700 mb-1">Desconto (R$)</label>
+                    <input type="number" id="discountValue" min="0" step="0.01" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="0">
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span class="font-medium">Subtotal:</span>
+                    <span id="checkoutSubtotal">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between mb-2">
+                    <span class="font-medium">Desconto:</span>
+                    <span id="checkoutDiscount">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between text-lg font-bold mb-4">
+                    <span>Total:</span>
+                    <span id="checkoutTotal">R$ 0,00</span>
+                </div>
+            </div>
+            <div class="flex justify-end border-t p-4">
+                <button onclick="closeCheckoutModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 mr-2">Cancelar</button>
+                <button onclick="openPaymentModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Selecionar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Method Modal -->
+    <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal-transition">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="flex justify-between items-center border-b p-4">
+                <h3 class="text-lg font-semibold">Forma de Pagamento</h3>
+                <button onclick="closePaymentModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <div class="space-y-3">
+                    <div class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 payment-method" data-method="dinheiro">
+                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-money-bill-wave text-green-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium">Dinheiro</h4>
+                            <p class="text-sm text-gray-500">Pagamento em espécie</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 payment-method" data-method="cartao">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-credit-card text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium">Cartão de Crédito</h4>
+                            <p class="text-sm text-gray-500">Parcelamento em até 12x</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 payment-method" data-method="debito">
+                        <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-credit-card text-purple-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium">Cartão de Débito</h4>
+                            <p class="text-sm text-gray-500">Pagamento à vista</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 payment-method" data-method="pix">
+                        <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-qrcode text-yellow-600"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium">PIX</h4>
+                            <p class="text-sm text-gray-500">Pagamento instantâneo</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional fields for cash payment -->
+                <div id="cashFields" class="mt-4 hidden">
+                    <div class="mb-3">
+                        <label for="cashReceived" class="block text-sm font-medium text-gray-700 mb-1">Valor Recebido (R$)</label>
+                        <input type="number" id="cashReceived" min="0" step="0.01" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="font-medium">Troco:</p>
+                        <p id="changeAmount" class="text-lg font-bold">R$ 0,00</p>
+                    </div>
+                </div>
+                
+                <!-- Additional fields for credit card -->
+                <div id="creditCardFields" class="mt-4 hidden">
+                    <div class="mb-3">
+                        <label for="installments" class="block text-sm font-medium text-gray-700 mb-1">Parcelas</label>
+                        <select id="installments" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1">1x sem juros</option>
+                            <option value="2">2x sem juros</option>
+                            <option value="3">3x sem juros</option>
+                            <option value="4">4x com juros</option>
+                            <option value="5">5x com juros</option>
+                            <option value="6">6x com juros</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end border-t p-4">
+                <button onclick="closePaymentModal()" class="px-4 py-2 text-gray-600 hover:text-gray-800 mr-2">Voltar</button>
+                <button onclick="completeSale()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Finalizar Venda</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sale Completed Modal -->
+    <div id="saleCompletedModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden modal-transition">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 text-center">
+            <div class="p-6">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-check text-green-600 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">Venda Concluída!</h3>
+                <p class="text-gray-600 mb-4">A venda foi registrada com sucesso.</p>
+                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                    <p class="font-medium">Total Recebido:</p>
+                    <p id="completedTotal" class="text-2xl font-bold text-green-600">R$ 0,00</p>
+                    <p id="paymentMethodText" class="text-sm text-gray-500 mt-1">Dinheiro</p>
+                </div>
+                <button onclick="closeSaleCompletedModal()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample product data
+        let products = [
+            { id: 1, name: "Smartphone Galaxy S23", price: 3999.90, category: "eletronicos", image: "https://images.samsung.com/is/image/samsung/p6pim/br/sm-s911bzlvzto/gallery/br-galaxy-s23-sm-s911b-477857-sm-s911bzlvzto-537001500?$650_519_PNG$" },
+            { id: 2, name: "Notebook Dell Inspiron", price: 3299.00, category: "eletronicos", image: "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/inspiron-notebooks/15-3520/media-gallery/in3520-cnb-00000ff090-sl.psd?fmt=png-alpha&pscan=auto&scl=1&hei=402&wid=402&qlt=100,0&resMode=sharp2&size=402,402" },
+            { id: 3, name: "Camiseta Básica Branca", price: 49.90, category: "vestuario", image: "https://img.irroba.com.br/fit-in/600x600/filters:fill(fff):quality(80)/lojacarol/catalog/produtos/estampadas/camiseta-branca-basica.jpg" },
+            { id: 4, name: "Tênis Esportivo", price: 199.90, category: "vestuario", image: "https://static.netshoes.com.br/produtos/tenis-nike-revolution-6-masculino/26/D12-9110-026/D12-9110-026_zoom1.jpg?ts=1644258815" },
+            { id: 5, name: "Arroz 5kg", price: 22.50, category: "alimentos", image: "https://www.paodeacucar.com/img/uploads/1/391/1934391.png" },
+            { id: 6, name: "Feijão Carioca 1kg", price: 8.90, category: "alimentos", image: "https://www.paodeacucar.com/img/uploads/1/390/193390.png" },
+            { id: 7, name: "Sofá 3 Lugares", price: 1899.00, category: "moveis", image: "https://a-static.mlcdn.com.br/800x560/sofa-3-lugares-retratil-e-reclinavel-180-graus-veludo-soft-lubeck-3-lugares/magazineluiza/236489800/0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a.jpg" },
+            { id: 8, name: "Mesa de Jantar", price: 799.00, category: "moveis", image: "https://a-static.mlcdn.com.br/800x560/mesa-de-jantar-redonda-4-lugares-100cm-madeira-macica-ipe-cumaru/magazineluiza/230023500/0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a.jpg" }
+        ];
+
+        // Shopping cart
+        let cart = [];
+        let nextProductId = 9; // For new products added via modal
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            renderProducts();
+            updateCartUI();
+            
+            // Search functionality
+            document.getElementById('searchProduct').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const filteredProducts = products.filter(product => 
+                    product.name.toLowerCase().includes(searchTerm) || 
+                    product.category.toLowerCase().includes(searchTerm)
+                );
+                renderProducts(filteredProducts);
+            });
+            
+            // Discount input handler
+            document.getElementById('discountValue').addEventListener('input', function() {
+                updateCheckoutTotals();
+            });
+            
+            // Cash received input handler
+            document.getElementById('cashReceived').addEventListener('input', function() {
+                calculateChange();
+            });
+            
+            // Payment method selection
+            document.querySelectorAll('.payment-method').forEach(method => {
+                method.addEventListener('click', function() {
+                    document.querySelectorAll('.payment-method').forEach(m => {
+                        m.classList.remove('border-blue-500', 'bg-blue-50');
+                    });
+                    this.classList.add('border-blue-500', 'bg-blue-50');
+                    
+                    // Show additional fields based on payment method
+                    const methodType = this.getAttribute('data-method');
+                    document.getElementById('cashFields').classList.add('hidden');
+                    document.getElementById('creditCardFields').classList.add('hidden');
+                    
+                    if (methodType === 'dinheiro') {
+                        document.getElementById('cashFields').classList.remove('hidden');
+                        calculateChange();
+                    } else if (methodType === 'cartao') {
+                        document.getElementById('creditCardFields').classList.remove('hidden');
+                    }
+                });
+            });
+        });
+
+        // Render products to the page
+        function renderProducts(productsToRender = products) {
+            const container = document.getElementById('productsContainer');
+            container.innerHTML = '';
+            
+            if (productsToRender.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 col-span-4 text-center py-8">Nenhum produto encontrado</p>';
+                return;
+            }
+            
+            productsToRender.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'bg-white rounded-lg shadow-sm overflow-hidden border hover:shadow-md transition-shadow';
+                productCard.innerHTML = `
+                    <div class="h-40 bg-gray-100 flex items-center justify-center overflow-hidden">
+                        ${product.image ? 
+                            `<img src="${product.image}" alt="${product.name}" class="object-cover h-full w-full">` : 
+                            `<i class="fas fa-box-open text-gray-400 text-4xl"></i>`}
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-medium text-gray-800 mb-1 truncate">${product.name}</h3>
+                        <p class="text-blue-600 font-bold mb-3">R$ ${product.price.toFixed(2).replace('.', ',')}</p>
+                        <button onclick="addToCart(${product.id})" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                            <i class="fas fa-cart-plus mr-2"></i> Adicionar
+                        </button>
+                    </div>
+                `;
+                container.appendChild(productCard);
+            });
+        }
+
+        // Add product to cart
+        function addToCart(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            const existingItem = cart.find(item => item.product.id === productId);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    product: product,
+                    quantity: 1
+                });
+            }
+            
+            updateCartUI();
+            
+            // Animation feedback
+            const btn = event.target.closest('button');
+            btn.innerHTML = '<i class="fas fa-check mr-2"></i> Adicionado';
+            btn.classList.remove('bg-blue-600');
+            btn.classList.add('bg-green-600');
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-cart-plus mr-2"></i> Adicionar';
+                btn.classList.remove('bg-green-600');
+                btn.classList.add('bg-blue-600');
+            }, 1000);
+        }
+
+        // Remove item from cart
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.product.id !== productId);
+            updateCartUI();
+        }
+
+        // Update item quantity in cart
+        function updateQuantity(productId, newQuantity) {
+            if (newQuantity < 1) {
+                removeFromCart(productId);
+                return;
+            }
+            
+            const item = cart.find(item => item.product.id === productId);
+            if (item) {
+                item.quantity = parseInt(newQuantity);
+            }
+            
+            updateCartUI();
+        }
+
+        // Update cart UI
+        function updateCartUI() {
+            const cartItemsContainer = document.getElementById('cartItems');
+            const cartCountElement = document.getElementById('cartCount');
+            const subtotalElement = document.getElementById('subtotal');
+            const totalElement = document.getElementById('total');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            
+            // Update count
+            const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+            cartCountElement.textContent = itemCount;
+            
+            // Calculate totals
+            const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            const total = subtotal; // No discount in main view
+            
+            // Update totals display
+            subtotalElement.textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+            totalElement.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            
+            // Enable/disable checkout button
+            checkoutBtn.disabled = itemCount === 0;
+            
+            // Render cart items
+            if (cart.length === 0) {
+                cartItemsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Seu carrinho está vazio</p>';
+                return;
+            }
+            
+            cartItemsContainer.innerHTML = '';
+            cart.forEach(item => {
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item-animation flex justify-between items-start p-3 border rounded-lg';
+                cartItem.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="w-12 h-12 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                            ${item.product.image ? 
+                                `<img src="${item.product.image}" alt="${item.product.name}" class="object-cover h-full w-full">` : 
+                                `<i class="fas fa-box-open text-gray-400"></i>`}
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-sm">${item.product.name}</h4>
+                            <p class="text-blue-600 text-sm font-bold">R$ ${item.product.price.toFixed(2).replace('.', ',')}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="updateQuantity(${item.product.id}, ${item.quantity - 1})" class="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <input type="number" value="${item.quantity}" min="1" onchange="updateQuantity(${item.product.id}, this.value)" class="w-10 text-center border rounded py-1 text-sm">
+                        <button onclick="updateQuantity(${item.product.id}, ${item.quantity + 1})" class="w-6 h-6 flex items-center justify-center bg-gray-200 rounded hover:bg-gray-300">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                        <button onclick="removeFromCart(${item.product.id})" class="text-red-500 hover:text-red-700 ml-2">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                cartItemsContainer.appendChild(cartItem);
+            });
+        }
+
+        // Modal functions
+        function openAddProductModal() {
+            document.getElementById('addProductModal').classList.remove('hidden');
+            document.getElementById('productName').focus();
+        }
+
+        function closeAddProductModal() {
+            document.getElementById('addProductModal').classList.add('hidden');
+            document.getElementById('addProductForm').reset();
+        }
+
+        function openCheckoutModal() {
+            document.getElementById('checkoutModal').classList.remove('hidden');
+            updateCheckoutTotals();
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById('checkoutModal').classList.add('hidden');
+        }
+
+        function openPaymentModal() {
+            document.getElementById('paymentModal').classList.remove('hidden');
+            document.getElementById('checkoutModal').classList.add('hidden');
+            
+            // Reset payment method selection
+            document.querySelectorAll('.payment-method').forEach(m => {
+                m.classList.remove('border-blue-500', 'bg-blue-50');
+            });
+            document.getElementById('cashFields').classList.add('hidden');
+            document.getElementById('creditCardFields').classList.add('hidden');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+            document.getElementById('checkoutModal').classList.remove('hidden');
+        }
+
+        function openSaleCompletedModal() {
+            document.getElementById('saleCompletedModal').classList.remove('hidden');
+        }
+
+        function closeSaleCompletedModal() {
+            document.getElementById('saleCompletedModal').classList.add('hidden');
+            // Clear cart after successful sale
+            cart = [];
+            updateCartUI();
+        }
+
+        // Add new product
+        function addNewProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const category = document.getElementById('productCategory').value;
+            const image = document.getElementById('productImage').value.trim();
+            
+            if (!name || isNaN(price) || price <= 0) {
+                alert('Por favor, preencha todos os campos corretamente');
+                return;
+            }
+            
+            const newProduct = {
+                id: nextProductId++,
+                name: name,
+                price: price,
+                category: category,
+                image: image || null
+            };
+            
+            products.push(newProduct);
+            renderProducts();
+            closeAddProductModal();
+            
+            // Scroll to the new product (which will be at the end)
+            setTimeout(() => {
+                document.getElementById('productsContainer').lastElementChild.scrollIntoView({
+                    behavior: 'smooth'
+                });
+            }, 100);
+        }
+
+        // Update checkout totals
+        function updateCheckoutTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            const discount = parseFloat(document.getElementById('discountValue').value) || 0;
+            const total = Math.max(0, subtotal - discount);
+            
+            document.getElementById('checkoutSubtotal').textContent = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+            document.getElementById('checkoutDiscount').textContent = `R$ ${discount.toFixed(2).replace('.', ',')}`;
+            document.getElementById('checkoutTotal').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        // Calculate change for cash payment
+        function calculateChange() {
+            const total = parseFloat(document.getElementById('checkoutTotal').textContent.replace('R$ ', '').replace(',', '.'));
+            const received = parseFloat(document.getElementById('cashReceived').value) || 0;
+            const change = Math.max(0, received - total);
+            
+            document.getElementById('changeAmount').textContent = `R$ ${change.toFixed(2).replace('.', ',')}`;
+        }
+
+        // Complete sale
+        function completeSale() {
+            // Get selected payment method
+            const selectedMethod = document.querySelector('.payment-method.border-blue-500');
+            if (!selectedMethod) {
+                alert('Por favor, selecione uma forma de pagamento');
+                return;
+            }
+            
+            const method = selectedMethod.getAttribute('data-method');
+            const total = parseFloat(document.getElementById('checkoutTotal').textContent.replace('R$ ', '').replace(',', '.'));
+            
+            // Validate cash payment
+            if (method === 'dinheiro') {
+                const received = parseFloat(document.getElementById('cashReceived').value) || 0;
+                if (received < total) {
+                    alert('O valor recebido é menor que o total da compra');
+                    return;
+                }
+            }
+            
+            // Show completion modal
+            document.getElementById('paymentModal').classList.add('hidden');
+            document.getElementById('completedTotal').textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            
+            // Set payment method text
+            let methodText = '';
+            switch(method) {
+                case 'dinheiro': methodText = 'Dinheiro'; break;
+                case 'cartao': methodText = 'Cartão de Crédito'; break;
+                case 'debito': methodText = 'Cartão de Débito'; break;
+                case 'pix': methodText = 'PIX'; break;
+            }
+            document.getElementById('paymentMethodText').textContent = methodText;
+            
+            openSaleCompletedModal();
+        }
+    </script>
+</body>
+</html>
